@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch & Chat</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-top: 20px;
+      color: #333;
+    }
+    #video-container {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 720px;
+    }
+    video {
+      width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    #chat-container {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 720px;
+      height: 300px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background-color: #fff;
+      padding: 10px;
+      overflow-y: auto;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    #chat-messages .message {
+      max-width: 60%;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      word-wrap: break-word;
+    }
+    #chat-messages .my-message {
+      align-self: flex-end;
+      background-color: #e1f5fe;
+    }
+    #chat-messages .other-message {
+      align-self: flex-start;
+      background-color: #f1f8e9;
+    }
+    #message-input {
+      display: flex;
+      width: 90%;
+      max-width: 720px;
+      margin-top: 10px;
+    }
+    #message-input input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px 0 0 5px;
+    }
+    #message-input button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 0 5px 5px 0;
+      cursor: pointer;
+    }
+    #message-input button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Watch & Chat</h1>
+
+  <!-- Video Container -->
+  <div id="video-container">
+    <video id="video" controls>
+      <source id="video-source" src="https://drive.google.com/uc?export=view&id=1zSeebrlFPPf3CwTJpEMvQr8VdANxesS2" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  </div>
+
+  <!-- Chat Container -->
+  <div id="chat-container">
+    <div id="chat-messages"></div>
+  </div>
+
+  <!-- Message Input -->
+  <div id="message-input">
+    <input type="text" id="message" placeholder="Type a message..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const chatMessages = document.getElementById('chat-messages');
+    const messageInput = document.getElementById('message');
+    const video = document.getElementById('video');
+    const videoSource = document.getElementById('video-source');
+
+    // Chat Functionality
+    socket.on('chat-history', (messages) => {
+      chatMessages.innerHTML = '';
+      messages.forEach((msg) => appendMessage(msg));
+    });
+
+    socket.on('chat-message', (message) => {
+      appendMessage(message);
+    });
+
+    function sendMessage() {
+      const message = messageInput.value.trim();
+      if (message) {
+        const myMessage = { text: message, sender: 'me' };
+        socket.emit('send-message', myMessage);
+        appendMessage(myMessage);
+        messageInput.value = '';
+      }
+    }
+
+    function appendMessage(message) {
+      const msgElement = document.createElement('div');
+      msgElement.className = `message ${message.sender === 'me' ? 'my-message' : 'other-message'}`;
+      msgElement.textContent = message.text;
+      chatMessages.appendChild(msgElement);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Video Sync Functionality
+    socket.on('video-event', (event) => {
+      if (event.type === 'play') video.play();
+      if (event.type === 'pause') video.pause();
+      if (event.type === 'seek') video.currentTime = event.time;
+    });
+
+    video.addEventListener('play', () => {
+      socket.emit('video-event', { type: 'play' });
+    });
+
+    video.addEventListener('pause', () => {
+      socket.emit('video-event', { type: 'pause' });
+    });
+
+    video.addEventListener('seeked', () => {
+      socket.emit('video-event', { type: 'seek', time: video.currentTime });
+    });
+  </script>
+</body>
+</html>
